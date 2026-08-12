@@ -11,7 +11,7 @@ export const CODEX_SDK_VERSION = PACKAGE_VERSIONS.sdk;
 export const CODEX_EXECUTABLE_VERSION = PACKAGE_VERSIONS.executable;
 export const BUNDLED_PLUGIN_VERSION = "0.1.17" as const;
 
-const PACKAGE_NAME = "@openai/codex-security";
+const PACKAGE_NAME = "@vsonic12138/codex-security";
 const VERSION_PATTERN =
   /^(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/u;
 
