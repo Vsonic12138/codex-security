@@ -1,0 +1,61 @@
+name: npm-publish
+
+# Publishes the forked Codex Security SDK (@vsonic12138/codex-security) from the
+# custom/openai-compatible-provider branch whenever a matching version tag is
+# pushed (custom-vX.Y.Z), or manually via workflow_dispatch.
+
+on:
+  push:
+    tags:
+      - "custom-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout custom branch
+        uses: actions/checkout@v6
+        with:
+          ref: custom/openai-compatible-provider
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22.13.0"
+          registry-url: https://registry.npmjs.org/
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Install dependencies
+        working-directory: sdk/typescript
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify tag matches package version
+        run: |
+          tag="${GITHUB_REF#refs/tags/custom-v}"
+          pkg="$(node -p "require('./sdk/typescript/package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Tag 'custom-v${tag}' does not match package version '${pkg}'." >&2
+            exit 1
+          fi
+          echo "Publishing ${pkg} from custom/openai-compatible-provider"
+
+      - name: Run tests
+        working-directory: sdk/typescript
+        run: pnpm test
+
+      - name: Build and publish
+        working-directory: sdk/typescript
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
