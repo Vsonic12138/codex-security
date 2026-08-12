@@ -10,6 +10,7 @@ import {
 import {
   FIREWORKS_CODEX_PROVIDER,
   OPENROUTER_CODEX_PROVIDER,
+  createCustomCodexProvider,
   scanModelProvider,
   writeCodexConfig,
   type JsonObject,
@@ -51,6 +52,33 @@ async function temporaryDirectory(): Promise<string> {
 }
 
 describe("CodexSecurity preflight configuration", () => {
+  test("projects a custom Responses provider without exposing its key", () => {
+    const environment = {
+      CUSTOM_PROVIDER_BASE_URL: "https://provider.example/v1",
+      CUSTOM_PROVIDER_API_KEY: "test-secret",
+    };
+    const config = scanPreflightCodexConfig({
+      model: "grok-4.5",
+      model_provider: "custom",
+      model_providers: {
+        custom: { ...createCustomCodexProvider(environment) },
+      },
+    });
+    expect(config).toEqual({
+      model: "grok-4.5",
+      model_provider: "custom",
+      model_providers: {
+        custom: {
+          name: "Custom OpenAI-compatible provider",
+          base_url: "https://provider.example/v1",
+          env_key: "CUSTOM_PROVIDER_API_KEY",
+          wire_api: "responses",
+        },
+      },
+    });
+    expect(JSON.stringify(config)).not.toContain("test-secret");
+  });
+
   test("uses a root-read filesystem profile with writable workspace and workbench state", () => {
     const stateDirectory = join(tmpdir(), "codex-security-persistent-state");
     const original = {

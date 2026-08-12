@@ -48,9 +48,10 @@ import {
 } from "./bulk-scan-discovery.js";
 import {
   DEFAULT_CODEX_CONFIG,
-  EXTERNAL_CODEX_PROVIDERS,
+  codexProviderConfig,
   isExternalModelProvider,
   mergedCodexConfig,
+  validateCustomProviderConfig,
   scanModelConfiguration,
   scanModelProvider,
   type CodexSecurityConfig,
@@ -195,7 +196,7 @@ const VALUE_OPTIONS = new Set([
   "--reason",
 ]);
 const PROVIDER_OPTION = z
-  .enum(["openai", "openrouter", "fireworks", "amazon-bedrock"])
+  .enum(["openai", "openrouter", "fireworks", "amazon-bedrock", "custom"])
   .default("openai")
   .describe("Inference provider for scans.");
 
@@ -1453,6 +1454,7 @@ export async function main(
                 options.model,
                 options.effort,
                 options.provider,
+                dependencies.environment,
               ),
             },
             createSecurity: dependencies.createSecurity,
@@ -2664,6 +2666,7 @@ async function runScan(
           arguments_.model,
           arguments_.effort,
           arguments_.provider,
+          dependencies.environment,
         ),
     };
     const selectedProfileName = config.codexOverrides?.["profile"];
@@ -3491,14 +3494,16 @@ export function parseCodexOverrides(
   model?: string,
   effort?: ModelReasoningEffort,
   provider?: "openai" | "amazon-bedrock" | ExternalModelProvider,
+  environment: NodeJS.ProcessEnv = process.env,
 ): JsonObject {
   const result = Object.create(null) as JsonObject;
   if (model !== undefined) result["model"] = model;
   if (effort !== undefined) result["model_reasoning_effort"] = effort;
   if (isExternalModelProvider(provider)) {
+    if (provider === "custom") validateCustomProviderConfig(environment);
     result["model_provider"] = provider;
     result["model_providers"] = {
-      [provider]: { ...EXTERNAL_CODEX_PROVIDERS[provider] },
+      [provider]: { ...codexProviderConfig(provider, environment) },
     };
   } else if (provider === "amazon-bedrock") {
     result["model_provider"] = provider;

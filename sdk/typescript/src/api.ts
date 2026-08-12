@@ -27,6 +27,7 @@ import {
 } from "./auth.js";
 import {
   EXTERNAL_CODEX_PROVIDERS,
+  codexProviderConfig,
   isExternalModelProvider,
   mergedCodexConfig,
   scanModelConfiguration,
@@ -44,6 +45,7 @@ import {
 import {
   AuthenticationRequiredError,
   CodexSecurityError,
+  ConfigurationError,
   IncompleteScanError,
   OutputDirectoryError,
   OutputInsideProtectedRootError,
@@ -186,7 +188,8 @@ export type ScanAuthentication =
         | "OPENAI_API_KEY"
         | "CODEX_API_KEY"
         | "OPENROUTER_API_KEY"
-        | "FIREWORKS_API_KEY";
+        | "FIREWORKS_API_KEY"
+        | "CUSTOM_PROVIDER_API_KEY";
       verified: false;
     }
   | {
@@ -446,7 +449,7 @@ export class CodexSecurity {
       const requestedConfig = await mergedCodexConfig(this.config);
       const modelProvider = scanModelProvider(requestedConfig);
       const externalProvider = isExternalModelProvider(modelProvider)
-        ? EXTERNAL_CODEX_PROVIDERS[modelProvider]
+        ? codexProviderConfig(modelProvider, this.#dependencies.environment)
         : null;
       let authentication = scanAuthentication(
         this.#dependencies.environment,
@@ -2297,7 +2300,9 @@ function selectedScanEnvironment(
   modelProvider?: unknown,
 ): ProcessEnvironment {
   const selectedProviderKey = isExternalModelProvider(modelProvider)
-    ? EXTERNAL_CODEX_PROVIDERS[modelProvider].env_key
+    ? modelProvider === "custom"
+      ? "CUSTOM_PROVIDER_API_KEY"
+      : EXTERNAL_CODEX_PROVIDERS[modelProvider].env_key
     : null;
   const bedrockProvider = modelProvider === "amazon-bedrock";
   if (auth !== "chatgpt" && selectedProviderKey === null && !bedrockProvider) {
@@ -2307,7 +2312,11 @@ function selectedScanEnvironment(
     Object.entries(environment).filter(([name]) => {
       const key = name.toUpperCase();
       if (key === "OPENAI_API_KEY" || key === "CODEX_API_KEY") return false;
-      if (key === "OPENROUTER_API_KEY" || key === "FIREWORKS_API_KEY") {
+      if (
+        key === "OPENROUTER_API_KEY" ||
+        key === "FIREWORKS_API_KEY" ||
+        key === "CUSTOM_PROVIDER_API_KEY"
+      ) {
         return (
           !bedrockProvider &&
           (selectedProviderKey === null || key === selectedProviderKey)
@@ -2347,11 +2356,16 @@ function environmentApiKeyEntry(
     | "OPENAI_API_KEY"
     | "CODEX_API_KEY"
     | "OPENROUTER_API_KEY"
-    | "FIREWORKS_API_KEY";
+    | "FIREWORKS_API_KEY"
+    | "CUSTOM_PROVIDER_API_KEY";
   value: string;
 } | null {
   const keys = isExternalModelProvider(modelProvider)
-    ? [EXTERNAL_CODEX_PROVIDERS[modelProvider].env_key]
+    ? ([
+        modelProvider === "custom"
+          ? "CUSTOM_PROVIDER_API_KEY"
+          : EXTERNAL_CODEX_PROVIDERS[modelProvider].env_key,
+      ] as const)
     : (["OPENAI_API_KEY", "CODEX_API_KEY"] as const);
   for (const requested of keys) {
     const value = environmentValue(environment, requested)?.trim();
@@ -2571,9 +2585,31 @@ export function scanPreflightCodexConfig(config: JsonObject): JsonObject {
   }
   const modelProvider = scanModelProvider(result);
   if (isExternalModelProvider(modelProvider)) {
-    result["model_providers"] = {
-      [modelProvider]: { ...EXTERNAL_CODEX_PROVIDERS[modelProvider] },
-    };
+    const providers = config["model_providers"];
+    const configuredProvider = isRecord(providers)
+      ? providers[modelProvider]
+      : undefined;
+    if (modelProvider === "custom") {
+      const provider = isRecord(configuredProvider)
+        ? configuredProvider
+        : undefined;
+      if (provider?.["wire_api"] !== "responses") {
+        throw new ConfigurationError(
+          "Only the Responses API is supported by the custom provider; " +
+            'custom provider wire_api must be "responses".',
+        );
+      }
+      const sanitized: JsonObject = {};
+      for (const key of ["name", "base_url", "env_key", "wire_api"]) {
+        const value = provider?.[key];
+        if (safeString(value)) sanitized[key] = value;
+      }
+      result["model_providers"] = { [modelProvider]: sanitized };
+    } else {
+      result["model_providers"] = {
+        [modelProvider]: { ...EXTERNAL_CODEX_PROVIDERS[modelProvider] },
+      };
+    }
   } else if (modelProvider === "amazon-bedrock") {
     const providers = config["model_providers"];
     const provider = isRecord(providers) ? providers[modelProvider] : undefined;

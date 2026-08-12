@@ -132,7 +132,23 @@ npx @openai/codex-security scan . --provider fireworks --model accounts/firework
 export AWS_BEARER_TOKEN_BEDROCK="<your-bedrock-api-key>"
 export AWS_REGION="us-east-2"
 npx @openai/codex-security scan . --provider amazon-bedrock --model openai.gpt-5.6-luna
+
+# Any OpenAI-compatible Responses API endpoint
+export CUSTOM_PROVIDER_BASE_URL="https://api.example.com/v1"
+export CUSTOM_PROVIDER_API_KEY="<your-api-key>"
+npx @openai/codex-security scan . --provider custom --model <model-id>
 ```
+
+The custom provider is **Responses API only** (`wire_api = "responses"`).
+`CUSTOM_PROVIDER_WIRE_API` is optional and defaults to `responses`; setting it to
+`chat` (Chat Completions) is rejected before the scan starts because the bundled
+Codex runtime no longer supports that protocol. For a Chat-only endpoint, place
+an external protocol-conversion proxy such as LiteLLM in front of it and point
+`CUSTOM_PROVIDER_BASE_URL` at the proxy's Responses-compatible endpoint.
+
+`CUSTOM_PROVIDER_BASE_URL` and `CUSTOM_PROVIDER_API_KEY` are read only from the
+environment; credentials are never written to the repository or runtime
+preflight configuration.
 
 On Windows, set the API key in PowerShell:
 

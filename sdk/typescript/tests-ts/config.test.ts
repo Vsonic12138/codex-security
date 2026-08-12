@@ -7,7 +7,9 @@ import { scanRuntimeCodexConfig } from "../src/api.js";
 import { scanModelConfiguration, scanModelProvider } from "../src/config.js";
 import {
   ConfigurationError,
+  createCustomCodexProvider,
   DEFAULT_CODEX_CONFIG,
+  validateCustomProviderConfig,
   type JsonObject,
   mergedCodexConfig,
   writeCodexConfig,
@@ -63,6 +65,42 @@ function runPinnedCodex(codexHome: string, arguments_: readonly string[]) {
 }
 
 describe("Codex configuration", () => {
+  test("validates and creates a Responses-only custom provider", () => {
+    const environment = {
+      CUSTOM_PROVIDER_BASE_URL: "https://provider.example/v1",
+      CUSTOM_PROVIDER_API_KEY: "test-key",
+    };
+    expect(() => validateCustomProviderConfig(environment)).not.toThrow();
+    expect(createCustomCodexProvider(environment)).toEqual({
+      name: "Custom OpenAI-compatible provider",
+      base_url: "https://provider.example/v1",
+      env_key: "CUSTOM_PROVIDER_API_KEY",
+      wire_api: "responses",
+    });
+  });
+
+  test.each([
+    ["CUSTOM_PROVIDER_BASE_URL", { CUSTOM_PROVIDER_API_KEY: "test-key" }],
+    [
+      "CUSTOM_PROVIDER_API_KEY",
+      { CUSTOM_PROVIDER_BASE_URL: "https://provider.example/v1" },
+    ],
+  ] as const)("rejects custom provider without %s", (_name, environment) => {
+    expect(() => validateCustomProviderConfig(environment)).toThrow(
+      `${_name} is required`,
+    );
+  });
+
+  test("rejects custom provider Chat Completions configuration", () => {
+    expect(() =>
+      validateCustomProviderConfig({
+        CUSTOM_PROVIDER_BASE_URL: "https://provider.example/v1",
+        CUSTOM_PROVIDER_API_KEY: "test-key",
+        CUSTOM_PROVIDER_WIRE_API: "chat",
+      }),
+    ).toThrow("Only the Responses API is supported");
+  });
+
   test("lets Codex honor native and managed credential storage", async () => {
     expect(DEFAULT_CODEX_CONFIG["cli_auth_credentials_store"]).toBe("auto");
     expect((await mergedCodexConfig({}))["cli_auth_credentials_store"]).toBe(

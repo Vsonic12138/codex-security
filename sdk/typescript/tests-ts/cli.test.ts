@@ -123,7 +123,13 @@ describe("CLI", () => {
           verbose: { type: "boolean" },
           effort: { enum: ["minimal", "low", "medium", "high", "xhigh"] },
           provider: {
-            enum: ["openai", "openrouter", "fireworks", "amazon-bedrock"],
+            enum: [
+              "openai",
+              "openrouter",
+              "fireworks",
+              "amazon-bedrock",
+              "custom",
+            ],
           },
           failOnSeverity: { enum: ["critical", "high", "medium", "low"] },
           headless: { type: "boolean" },
@@ -1929,7 +1935,7 @@ describe("CLI", () => {
     );
     expect(help.text()).toContain("--model <string>");
     expect(help.text()).toContain(
-      "--provider <openai|openrouter|fireworks|amazon-bedrock>",
+      "--provider <openai|openrouter|fireworks|amazon-bedrock|custom>",
     );
     expect(help.text()).toContain(
       `OpenAI model to use (default: ${DEFAULT_SCAN_MODEL_CONFIGURATION.model}).`,
@@ -1997,7 +2003,7 @@ describe("CLI", () => {
     expect(help.text()).not.toContain("--outputDir");
     expect(help.text()).not.toContain("--maxAttempts");
     expect(help.text()).toContain(
-      "--provider <openai|openrouter|fireworks|amazon-bedrock>",
+      "--provider <openai|openrouter|fireworks|amazon-bedrock|custom>",
     );
     expect(stderr.text()).toBe("");
   });
@@ -2244,6 +2250,43 @@ describe("CLI", () => {
         ),
       ).toThrow("--provider conflicts with --codex model_provider");
     }
+    const customEnvironment = {
+      CUSTOM_PROVIDER_BASE_URL: "https://provider.example/v1",
+      CUSTOM_PROVIDER_API_KEY: "test-key",
+    };
+    expect(() =>
+      parseCodexOverrides(
+        [],
+        undefined,
+        undefined,
+        "custom",
+        customEnvironment,
+      ),
+    ).toThrow("--model is required when using --provider custom");
+    expect(
+      parseCodexOverrides([], "grok-4.5", undefined, "custom", {
+        CUSTOM_PROVIDER_BASE_URL: "https://provider.example/v1",
+        CUSTOM_PROVIDER_API_KEY: "test-key",
+      }),
+    ).toEqual({
+      model: "grok-4.5",
+      model_provider: "custom",
+      model_providers: {
+        custom: {
+          name: "Custom OpenAI-compatible provider",
+          base_url: "https://provider.example/v1",
+          env_key: "CUSTOM_PROVIDER_API_KEY",
+          wire_api: "responses",
+        },
+      },
+    });
+    expect(() =>
+      parseCodexOverrides([], "grok-4.5", undefined, "custom", {
+        CUSTOM_PROVIDER_BASE_URL: "https://provider.example/v1",
+        CUSTOM_PROVIDER_API_KEY: "test-key",
+        CUSTOM_PROVIDER_WIRE_API: "chat",
+      }),
+    ).toThrow("Only the Responses API is supported");
   });
 
   test("redacts malformed --codex overrides and accepts large values", () => {

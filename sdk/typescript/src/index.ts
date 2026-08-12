@@ -39,10 +39,18 @@ export {
 export type { ProtectedScanPathKind } from "./errors.js";
 export {
   DEFAULT_CODEX_CONFIG,
+  createCustomCodexProvider,
   mergedCodexConfig,
+  validateCustomProviderConfig,
   writeCodexConfig,
 } from "./config.js";
-export type { CodexSecurityConfig, JsonObject, JsonValue } from "./config.js";
+export type {
+  CodexProviderConfig,
+  CodexSecurityConfig,
+  JsonObject,
+  JsonValue,
+  ProviderEnvironment,
+} from "./config.js";
 export { loadContract, requireScanFile } from "./contract.js";
 export type { LoadedContract, ScanExpectation } from "./contract.js";
 export type * from "./models.js";

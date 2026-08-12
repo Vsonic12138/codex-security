@@ -21,6 +21,13 @@ export interface ScanModelConfiguration {
   reasoningEffort: string;
 }
 
+export interface CodexProviderConfig {
+  name: string;
+  base_url: string;
+  env_key: string;
+  wire_api: "responses";
+}
+
 export const OPENROUTER_CODEX_PROVIDER = {
   name: "OpenRouter",
   base_url: "https://openrouter.ai/api/v1",
@@ -40,15 +47,78 @@ export const EXTERNAL_CODEX_PROVIDERS = {
   fireworks: FIREWORKS_CODEX_PROVIDER,
 } as const;
 
-export type ExternalModelProvider = keyof typeof EXTERNAL_CODEX_PROVIDERS;
+export type ExternalModelProvider =
+  | keyof typeof EXTERNAL_CODEX_PROVIDERS
+  | "custom";
+export type ProviderEnvironment = Readonly<Record<string, string | undefined>>;
 
 export function isExternalModelProvider(
   provider: unknown,
 ): provider is ExternalModelProvider {
   return (
-    typeof provider === "string" &&
-    Object.hasOwn(EXTERNAL_CODEX_PROVIDERS, provider)
+    provider === "custom" ||
+    (typeof provider === "string" &&
+      Object.hasOwn(EXTERNAL_CODEX_PROVIDERS, provider))
   );
+}
+
+export function validateCustomProviderConfig(
+  environment: ProviderEnvironment = process.env,
+): void {
+  const baseUrl = environment["CUSTOM_PROVIDER_BASE_URL"]?.trim();
+  if (!baseUrl) {
+    throw new ConfigurationError(
+      "CUSTOM_PROVIDER_BASE_URL is required when using --provider custom.",
+    );
+  }
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(baseUrl);
+  } catch {
+    throw new ConfigurationError(
+      "CUSTOM_PROVIDER_BASE_URL must be a valid HTTP(S) URL.",
+    );
+  }
+  if (parsedUrl.protocol !== "http:" && parsedUrl.protocol !== "https:") {
+    throw new ConfigurationError(
+      "CUSTOM_PROVIDER_BASE_URL must be a valid HTTP(S) URL.",
+    );
+  }
+  if (!environment["CUSTOM_PROVIDER_API_KEY"]?.trim()) {
+    throw new ConfigurationError(
+      "CUSTOM_PROVIDER_API_KEY is required when using --provider custom.",
+    );
+  }
+  const wireApi =
+    environment["CUSTOM_PROVIDER_WIRE_API"]?.trim() || "responses";
+  if (wireApi !== "responses") {
+    throw new ConfigurationError(
+      "Only the Responses API is supported by the custom provider; " +
+        'CUSTOM_PROVIDER_WIRE_API must be "responses". Chat Completions ' +
+        '("chat") is not supported.',
+    );
+  }
+}
+
+export function createCustomCodexProvider(
+  environment: ProviderEnvironment = process.env,
+): CodexProviderConfig {
+  validateCustomProviderConfig(environment);
+  return {
+    name: "Custom OpenAI-compatible provider",
+    base_url: environment["CUSTOM_PROVIDER_BASE_URL"]!.trim(),
+    env_key: "CUSTOM_PROVIDER_API_KEY",
+    wire_api: "responses",
+  };
+}
+
+export function codexProviderConfig(
+  provider: ExternalModelProvider,
+  environment: ProviderEnvironment = process.env,
+): CodexProviderConfig {
+  return provider === "custom"
+    ? createCustomCodexProvider(environment)
+    : EXTERNAL_CODEX_PROVIDERS[provider];
 }
 
 export const DEFAULT_CODEX_CONFIG: Readonly<JsonObject> = {
