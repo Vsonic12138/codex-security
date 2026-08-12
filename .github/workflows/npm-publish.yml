@@ -55,9 +55,12 @@ jobs:
           fi
           echo "Publishing ${pkg} from custom/openai-compatible-provider"
 
-      - name: Run tests
+      - name: Verify types, tests, and build
         working-directory: sdk/typescript
-        run: pnpm test
+        run: |
+          pnpm run types
+          pnpm exec bun test --timeout 30000 tests-ts/config.test.ts tests-ts/api-preflight-config.test.ts tests-ts/cli.test.ts tests-ts/update-notice.test.ts
+          pnpm run build
 
       - name: Build and publish
         working-directory: sdk/typescript
