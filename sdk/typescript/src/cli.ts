@@ -1090,7 +1090,7 @@ export async function main(
     description: "Run, validate, patch, and export Codex Security findings.",
     version: VERSION,
     mcp: {
-      command: "npx --yes @openai/codex-security --mcp",
+      command: "npx --yes @bigyellow12138/codex-security --mcp",
       instructions:
         "Use info for read-only SDK metadata. Scans and other state-changing commands are CLI-only because the MCP transport cannot cancel active commands.",
     },
