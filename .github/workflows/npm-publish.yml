@@ -34,7 +34,7 @@ jobs:
           registry-url: https://registry.npmjs.org/
 
       - name: Enable pnpm
-        run: corepack enable
+        run: corepack enable && corepack prepare "$(node -p "require('./sdk/typescript/package.json').packageManager")" --activate
 
       - name: Install dependencies
         working-directory: sdk/typescript
