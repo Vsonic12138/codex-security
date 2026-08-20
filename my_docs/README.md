@@ -17,8 +17,7 @@
 - 上游：`https://github.com/openai/codex-security.git`
 - workflow：`.github/workflows/sync-upstream.yml`，cron `17 */6 * * *`（UTC）
 - 手动触发：`gh workflow run sync-upstream.yml -R Vsonic12138/codex-security`
-- 同步使用 GitHub 自动的 `GITHUB_TOKEN`（contents: write），不依赖个人凭据
-
+- 同步使用仓库 Secret `SYNC_TOKEN`（个人访问令牌 PAT，包含 `workflow` 权限）配合 `actions: write`，确保上游包含 Actions 工作流变更时可正常推送。
 ## 二开工作流
 
 ```bash
@@ -34,3 +33,4 @@ git merge official-main
 ## 当前二开内容
 
 - 自定义 OpenAI-compatible inference provider（详见 `custom-provider-plan.md`）
+- [上游合并与冲突处理指南](merge-conflict-guide.md)
