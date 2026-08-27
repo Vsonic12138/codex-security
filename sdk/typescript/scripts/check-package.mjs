@@ -14,7 +14,10 @@ const args = process.argv.slice(2);
 if (args[0] === "--") args.shift();
 const [
   archive,
-  contractPath = new URL("../plugin-files.json", import.meta.url),
+  contractPath = new URL(
+    "../../../plugins/codex-security/plugin-files.json",
+    import.meta.url,
+  ),
 ] = args;
 if (archive === undefined || args.length > 2) {
   throw new Error(
@@ -195,6 +198,11 @@ const distFiles = new Set(
     "scan-history-renderer",
     "scan-logs",
     "scan-sessions",
+    "server/index",
+    "server/routes",
+    "server/server",
+    "server/sqlite-store",
+    "server/storage",
     "targets",
     "thread-source",
     "trusted-executable",
@@ -217,6 +225,7 @@ for (const file of files) {
     ? normalized === "package" ||
       normalized === "package/bin" ||
       normalized === "package/dist" ||
+      normalized === "package/dist/server" ||
       pluginDirectories.has(normalized)
     : allowedRoot.has(normalized) ||
       distFiles.has(normalized) ||
