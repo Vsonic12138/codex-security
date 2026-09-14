@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout custom branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: custom/openai-compatible-provider
           fetch-depth: 0
