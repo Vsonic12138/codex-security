@@ -572,9 +572,10 @@ Working-tree snapshots include files from untracked nested Git repositories.
 Initialized submodules must be clean and checked out at the commit recorded by
 the parent repository.
 
-Repeat `--knowledge-base PATH` for Markdown, text, PDF, or Word (`.docx`) files.
-Directories are searched recursively. Bulk scans share these documents with
-every repository.
+Repeat `--knowledge-base PATH` for UTF-8 text files with any extension (including
+JSON and SARIF), PDF, or Word (`.docx`) files. Directories are searched recursively,
+skipping other binary files. Explicitly supplied unsupported binary files are rejected.
+Bulk scans share these documents with every repository.
 
 Use an empty output directory outside the scanned directory and enclosing Git
 worktree. On macOS/Linux, existing directories must be private to you
@@ -933,20 +934,32 @@ The final summary preserves missing-data information from a matching session log
 If the Codex runtime converts an omitted count to zero before recording it, the
 CLI cannot distinguish that zero from reported usage.
 
-JSON results, scan history, and bulk-scan receipts record the model, tokens,
-estimated cost, and `cost.pricing`: the price source, verification date, processing
-tier, context category, and rates in USD per million tokens. Estimates use
-[standard, short-context API prices](https://developers.openai.com/api/docs/pricing),
-including cache reads and writes. They exclude long-context and other processing
-tier adjustments, fees, and surcharges. GPT-5.5 and GPT-6 Astra are supported;
-models without known prices show an unavailable estimate.
+Cost displays show a range using
+[standard API prices](https://developers.openai.com/api/docs/pricing), because
+runtime usage does not identify which requests received long-context pricing.
+The minimum assumes short-context pricing; the maximum assumes long-context
+pricing. These are token-cost estimates for the observed usage, excluding other
+processing tiers, fees, surcharges, and account-specific pricing.
+
+JSON results, scan history, and bulk-scan receipts preserve
+`cost.estimatedUsdRange`: `min`, `max`, and `context: "unknown"`. A `null` maximum
+means an upper estimate is unavailable, including models without verified
+long-context rates. `cost.pricing` records the price source, verification date,
+processing tier, short-context rates, and verified long-context rates when known.
+Models without known short-context prices still have no cost estimate.
 
 For compatibility, `cacheWriteInputTokens` remains the reported token subtotal.
 `cacheWriteInputTokensReported: false` means at least one included usage record
 did not report cache writes. Raw usage uses `cache_write_input_tokens_reported`.
-In that case, the estimate prices unclassified input at the ordinary input rate;
-it may undercount cache-write charges. Older saved records lack this distinction
-and the saved pricing basis.
+In that case, the range minimum prices unclassified input as ordinary input,
+and the maximum allows it to be cache writes. Token counts remain unchanged.
+Older saved records remain readable and display a labeled legacy estimate;
+they are not repriced using current rates.
+
+For compatibility, `cost.estimatedUsd` retains the short-context baseline used
+by existing spending limits. `cost.pricing.context: "short"` describes that
+baseline, not observed request contexts. Use `estimatedUsdRange` for cost
+reporting. This change does not change when spending limits stop scans.
 
 `--max-cost USD` stops the scan and its workers when estimated cost exceeds
 the limit, though in-flight requests can finish above it. If deep-scan
@@ -1277,7 +1290,7 @@ Omitting `--rubric` inherits each finding's existing severity without a model ca
 
 `--rubric PATH` supplies the classification policy. Repeat `--knowledge-base PATH`
 to provide supporting architecture, deployment, or business context. Both accept
-the same Markdown, text, PDF, DOCX, and directory inputs as scan knowledge bases.
+the same UTF-8 text, PDF, DOCX, and directory inputs as scan knowledge bases.
 Rubric classification uses the full supplied report and context in a separate
 read-only Codex turn per finding, without source inspection, tools, or new
 validation. `--model` and `--effort` select the classification model and reasoning
