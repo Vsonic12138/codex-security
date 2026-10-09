@@ -10,13 +10,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.30.0",
+    "@modelcontextprotocol/sdk": "^1.31.0",
     "@openai/codex-sdk": "0.154.0",
-    "smol-toml": "1.8.0",
-    "zod": "^4.6.1"
+    "smol-toml": "1.9.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.4",
     "esbuild": "^0.28.2",
     "typescript": "^7.0.2"
   }
